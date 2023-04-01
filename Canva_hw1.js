@@ -42,7 +42,7 @@ var delay = 800;
 canvas.addEventListener("mousedown", startDraw);
 canvas.addEventListener("mousemove", Drawing);
 canvas.addEventListener("mouseup", stopDrawing);
-// canvas.addEventListener("mouseleave", stopDrawing);
+// canvas.addEventListener("mouseout", stopDrawing);
 Snap();
 document.getElementById("block").style.backgroundColor = selectedColor;
 
@@ -59,6 +59,14 @@ canvas.addEventListener('click', function(e) {
         lastY = e.offsetY; 
         lastX = e.offsetX;
         textInput.focus();
+    }
+    else if(selectedTool === "pixel"){
+        const pixel_data = ctx.getImageData(e.offsetX+2,e.offsetY+12,1,1).data;
+        document.getElementById("R").value = pixel_data[0];
+        document.getElementById("G").value = pixel_data[1];
+        document.getElementById("B").value = pixel_data[2];
+        console.log(pixel_data);
+        changeColor();
     }
 });
 
@@ -98,44 +106,73 @@ function Drawing(e){
 
     const currentTime = new Date();
     const timepass = currentTime - lastMoveTime;
-    if (timepass > delay) timeout = 1;
+    if (timepass > delay && selectedTool === "brush") timeout = 1;
 
-    ctx.beginPath();
-    if(selectedTool === "brush" && timeout != 1 || selectedTool === "eraser"){
-        if(selectedTool === "eraser"){
-            ctx.globalCompositeOperation ="destination-out";
-        }
-        else {
-            ctx.globalCompositeOperation ="source-over";
-        }
+    
+    if(selectedTool === "brush" && timeout != 1){
+        ctx.beginPath();
+        ctx.globalCompositeOperation ="source-over";
+
         ctx.moveTo(lastX, lastY); 
-        ctx.lineTo(e.offsetX, e.offsetY+16);
+        ctx.lineTo(e.offsetX, e.offsetY);
         ctx.stroke();
         lastX = e.offsetX;
-        lastY = e.offsetY+16;  
+        lastY = e.offsetY;  
+    }
+    else if(selectedTool === "eraser"){
+        ctx.beginPath();
+        ctx.globalCompositeOperation ="destination-out";
+        
+        ctx.moveTo(lastX, lastY); 
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+        lastX = e.offsetX;
+        lastY = e.offsetY; 
     }
     else if (selectedTool === "rectangle"){
+        ctx.beginPath();
         ctx.globalCompositeOperation ="source-over";
         ctx.putImageData(snapshot,0,0);
         ctx.strokeRect(e.offsetX, e.offsetY, lastX - e.offsetX, lastY - e.offsetY);
     }
     else if (selectedTool === "circle"){
+        ctx.beginPath();
         ctx.globalCompositeOperation ="source-over";
         ctx.putImageData(snapshot,0,0);
         drawCircle(e);
     }
     else if (selectedTool === "triangle"){
+        ctx.beginPath();
         ctx.globalCompositeOperation ="source-over";
         ctx.putImageData(snapshot,0,0);
         drawTriangle(e);
     }
     else if (selectedTool === "straight" || timeout == 1){
+        ctx.beginPath();
         ctx.globalCompositeOperation ="source-over";
         ctx.putImageData(snapshot,0,0);
         drawStraight(e);
+        ctx.closePath();
+        ctx.stroke();
+    }
+    else if (selectedTool === "marker"){
+        ctx.beginPath();
+        ctx.globalCompositeOperation ="source-over";
+        ctx.globalAlpha = 0.5;
+        ctx.putImageData(snapshot,0,0);
+        drawStraight(e);
+        ctx.stroke();
     }
     else if(selectedTool === "Text"){
         ctx.globalCompositeOperation ="source-over";
+    }
+    else if(selectedTool === "pixel"){
+        ctx.globalCompositeOperation ="source-over";
+    }
+    else if (selectedTool === "ellipse"){
+        ctx.globalCompositeOperation ="source-over";
+        ctx.putImageData(snapshot,0,0);
+        drawEllipse(e);
     }
     lastMoveTime = currentTime;
 }
@@ -147,6 +184,16 @@ function drawCircle(e){
     let centerY = (lastY + e.offsetY)/2;
     let diameter = Math.sqrt(Math.pow((lastX - e.offsetX), 2) + Math.pow((lastY - e.offsetY), 2));
     ctx.arc(centerX,centerY,diameter/2,0, 2*Math.PI);
+    ctx.stroke();
+}
+
+function drawEllipse(e){
+    
+    let centerX = (lastX + e.offsetX)/2;
+    let centerY = (lastY + e.offsetY)/2;
+    let rx = Math.abs(lastX - e.offsetX)/2;
+    let ry = Math.abs(lastY - e.offsetY)/2;
+    ctx.ellipse(centerX,centerY,rx,ry,0,0, 2*Math.PI);
     ctx.stroke();
 }
 
@@ -164,16 +211,17 @@ function drawStraight(e){
     ctx.moveTo(initX,initY);
     ctx.lineTo(e.offsetX,e.offsetY);
     
-    ctx.closePath();
-    ctx.stroke();
+    // ctx.closePath();
+    // ctx.stroke();
 }
 
 function stopDrawing(e){
-    isDrawing = false;
-    timeout = 0;
-    lastMoveTime = null;
-    if(selectedTool === "Text");
-    else Snap();
+    if(isDrawing == true){
+        isDrawing = false;
+        lastMoveTime = null;
+        if(selectedTool === "Text" || selectedTool === "pixel");
+        else Snap();
+    }
 }
 
 function changeColor() {
@@ -181,10 +229,10 @@ function changeColor() {
     const redValue = document.getElementById("R").value;
     const greenValue = document.getElementById("G").value;
     const blueValue = document.getElementById("B").value;
-
     // Set the background color of the target element
-    document.getElementById("block").style.backgroundColor = `rgb(${redValue}, ${greenValue}, ${blueValue})`;
-    selectedColor = `rgb(${redValue}, ${greenValue}, ${blueValue})`;
+    selectedColor = `rgba(${redValue}, ${greenValue}, ${blueValue},1)`;
+    document.getElementById("block").style.backgroundColor = selectedColor;
+    
 }
 
 // function changeFont() {
@@ -217,6 +265,12 @@ Toolbtns.forEach(btn => {
         else if(selectedTool === "straight"){
             cursorImage = "images/straight-line.png";
         }
+        else if(selectedTool === "marker"){
+            cursorImage = "images/marker-cursor.png";
+            document.getElementById("R").value = 255;
+            document.getElementById("G").value = 255;
+            changeColor();
+        }
         else if (selectedTool === "circle"){
             cursorImage = "images/circle.png";
         }
@@ -225,6 +279,12 @@ Toolbtns.forEach(btn => {
         }
         else if (selectedTool === "triangle"){
             cursorImage = "images/triangle.png";
+        }
+        else if (selectedTool === "ellipse"){
+            cursorImage = "images/circle.png";
+        }
+        else if(selectedTool === "pixel"){
+            cursorImage = "images/pixel-cursor.png";
         }
         canvas.style.cursor = "url(" + cursorImage + "), auto";
     });
@@ -268,7 +328,7 @@ Redo.addEventListener("click",() => {
 SaveImg.addEventListener("click",() => {
 
     link = document.createElement("a");
-    link.download = "Image.jpg";
+    link.download = "Your-Beautiful-Art.jpg";
     link.href = canvas.toDataURL();
     link.click();
 });
